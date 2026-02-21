@@ -19,13 +19,12 @@ Codex is OpenAI’s coding agent for software development. ChatGPT Plus, Pro, Bu
 
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-white.svg)](https://snapcraft.io/codex)
 
-[![amz-aws-cli](https://snapcraft.io/codex/badge.svg)](https://snapcraft.io/codex)
+[![codex](https://snapcraft.io/codex/badge.svg)](https://snapcraft.io/codex)
 
 Install from the global snap store
 
 ```
 sudo snap install codex
-
 ```
 
 ## Configuration
