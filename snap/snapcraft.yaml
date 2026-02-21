@@ -62,10 +62,18 @@ parts:
       - ripgrep
       - unzip
       - zip
+  completer:
+    plugin: nil
+    override-build: |
+      install -d "${CRAFT_PART_INSTALL}/usr/share/bash-completion"
+      ${CRAFT_STAGE}/bin/codex completion > "${CRAFT_PART_INSTALL}/usr/share/bash-completion/codex"
+    after:
+      - codex
 
 apps:
   codex:
     command: bin/codex
+    completer: usr/share/bash-completion/codex
     environment:
       CODEX_HOME: $SNAP_USER_DATA/.codex
     plugs:
