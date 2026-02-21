@@ -5,9 +5,18 @@ adopt-info: codex
 description: |
   Codex is OpenAI’s coding agent for software development. ChatGPT Plus,
   Pro, Business, Edu, and Enterprise plans include Codex.
-
 grade: devel
 confinement: strict
+platforms:
+  amd64:
+    build-on:
+      - amd64
+  arm64:
+    build-on:
+      - arm64
+source-code: https://github.com/nysasounds/codex
+issues: https://github.com/nysasounds/codex/issues
+
 
 parts:
   codex:
