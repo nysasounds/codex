@@ -1,0 +1,33 @@
+# Snap packaging of OpenAI Codex
+
+One agent for everywhere you code
+
+Codex is OpenAI’s coding agent for software development. ChatGPT Plus, Pro, Business, Edu, and Enterprise plans include Codex. It can help you:
+
+- **Write code**: Describe what you want to build, and Codex generates code that matches your intent, adapting to your existing project structure and conventions.
+- **Understand unfamiliar codebases**: Codex can read and explain complex or legacy code, helping you grasp how teams organize systems.
+- **Review code**: Codex analyzes code to identify potential bugs, logic errors, and unhandled edge cases.
+- **Debug and fix problems**: When something breaks, Codex helps trace failures, diagnose root causes, and suggest targeted fixes.
+- **Automate development tasks**: Codex can run repetitive workflows such as refactoring, testing, migrations, and setup tasks so you can focus on higher-level engineering work
+
+[Upstream](https://github.com/openai/codex)
+
+[Usage Docs](https://developers.openai.com/codex/cli/)
+
+
+## Install
+
+[![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-white.svg)](https://snapcraft.io/codex)
+
+[![amz-aws-cli](https://snapcraft.io/codex/badge.svg)](https://snapcraft.io/codex)
+
+Install from the global snap store
+
+```
+sudo snap install codex
+
+```
+
+## Configuration
+
+Config lives under `$HOME/snap/codex/current/.codex`
