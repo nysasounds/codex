@@ -14,6 +14,19 @@ Codex is OpenAI’s coding agent for software development. ChatGPT Plus, Pro, Bu
 
 [Usage Docs](https://developers.openai.com/codex/cli/)
 
+## Info
+
+This is just another installation method for Codex, providing an alternative to documented installation methods such as NPM or Brew.
+
+This is a strictly confined snap, which has the following considerations:
+  - The application has restricted access to system resources, providing an extra layer of security.
+    - System access is controlled by specifically configured interface plugs that are connected to the application.
+    - Codex will have access to files under your HOME directory only, which is then further bound by the Sandboxing Modes you have configured for Codex.
+      - Sandbox Modes do not supersede the strict confinement, rather the confinement acts as an extra security layer over the top.
+  - Any extra utilities or other external dependencies must be included within the snap package, either specifically or by inheritance from the snaps base.
+    - If you find an important dependency is missing, please open an Issue and/or PR so we can it's inclusion can be discussed.
+  - The default configuration location is different
+    - Please see the [below](#Configuration) for details
 
 ## Install
 
@@ -27,6 +40,11 @@ Install from the global snap store
 sudo snap install codex
 ```
 
-## Configuration
+### Configuration
 
-Config lives under `$HOME/snap/codex/current/.codex`
+Configuration lives under `$HOME/snap/codex/current/.codex`
+
+If you wish to, you could symlink this back to the standard/default location for convenience:
+```
+ln -s "${HOME}/snap/codex/current/.codex" "${HOME}/.codex"
+```
