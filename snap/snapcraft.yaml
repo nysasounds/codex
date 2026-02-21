@@ -5,14 +5,14 @@ adopt-info: codex
 description: |
   Codex is OpenAI’s coding agent for software development. ChatGPT Plus,
   Pro, Business, Edu, and Enterprise plans include Codex.
-grade: devel
+grade: stable
 confinement: strict
 platforms:
   amd64:
   arm64:
 source-code: https://github.com/nysasounds/codex
 issues: https://github.com/nysasounds/codex/issues
-
+license: Apache-2.0
 
 parts:
   codex:
@@ -23,7 +23,7 @@ parts:
     source-subdir: codex-rs
     override-pull: |
       craftctl default
-      tag="$(git -C "$CRAFT_PART_SRC" describe --tags --exact-match 2>/dev/null || git -C "$CRAFT_PART_SRC" describe --tags --abbrev=0)"
+      tag="$(git -C "${CRAFT_PART_SRC}" describe --tags --exact-match 2>/dev/null || git -C "${CRAFT_PART_SRC}" describe --tags --abbrev=0)"
       craftctl set version="${tag#rust-v}"
 
     rust-channel: stable
@@ -39,10 +39,15 @@ parts:
     stage-packages:
       - xdg-utils
     build-environment:
-      #- CARGO_BUILD_JOBS: "4"
       - RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
       - CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "1"
       - CARGO_PROFILE_RELEASE_DEBUG: "0"
+    override-build: |
+      craftctl default
+      # Include the current license info #
+      install -d "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}"
+      install "${CRAFT_PART_SRC}/LICENSE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
+      install "${CRAFT_PART_SRC}/NOTICE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
     organize:
       codex: bin/codex
   # As this is a sctricly confined snap - include some commonly used utils #
