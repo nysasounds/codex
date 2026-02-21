@@ -73,12 +73,6 @@ jobs:
 
       - name: Snap Basic
         run: |
-          # codex _something_
-
-      - name: Sanp Validate
-        run: |
-          # codex _something_
-
-          echo "Configure ok"
+          codex help |grep -E "^Codex CLI"
 
       - run: echo "🍏 Job status ${{ job.status }}"
