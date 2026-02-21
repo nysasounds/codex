@@ -1,0 +1,23 @@
+{
+  "extends": [
+    "config:base"
+  ],
+  "enabledManagers": ["regex"],
+  "regexManagers": [
+    {
+      "fileMatch": ["^snap/snapcraft.yaml$"],
+      "matchStrings": [
+	      "refs\/tags\/(?<depName>.*)\/rust-v(?<currentValue>.*)"
+      ],
+      "depNameTemplate": "openai/codex",
+      "datasourceTemplate": "github-tags"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "automerge": true
+    }
+  ],
+  "schedule": ["after 6pm"]
+}
