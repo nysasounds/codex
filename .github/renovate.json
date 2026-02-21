@@ -7,7 +7,7 @@
     {
       "fileMatch": ["^snap/snapcraft.yaml$"],
       "matchStrings": [
-	      "refs\/tags\/(?<depName>.*)\/rust-v(?<currentValue>.*)"
+	      "source-tag: (?<currentValue>.*)"
       ],
       "depNameTemplate": "openai/codex",
       "datasourceTemplate": "github-tags"
