@@ -1,0 +1,65 @@
+name: codex
+base: core24
+summary: Codex - One agent for everywhere you code
+adopt-info: codex
+description: |
+  Codex is OpenAI’s coding agent for software development. ChatGPT Plus,
+  Pro, Business, Edu, and Enterprise plans include Codex.
+
+grade: devel
+confinement: strict
+
+parts:
+  codex:
+    plugin: rust
+    source: https://github.com/openai/codex.git
+    source-tag: rust-v0.104.0
+    source-depth: 1
+    source-subdir: codex-rs
+    override-pull: |
+      craftctl default
+      tag="$(git -C "$CRAFT_PART_SRC" describe --tags --exact-match 2>/dev/null || git -C "$CRAFT_PART_SRC" describe --tags --abbrev=0)"
+      craftctl set version="${tag#rust-v}"
+
+    rust-channel: stable
+    rust-use-global-lto: false
+    rust-cargo-parameters:
+      - "--bin codex"
+    build-packages:
+      - lld
+      - pkg-config
+      - libssl-dev
+      - libclang-dev
+      - libcap-dev
+    stage-packages:
+      - xdg-utils
+    build-environment:
+      #- CARGO_BUILD_JOBS: "4"
+      - RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
+      - CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "1"
+      - CARGO_PROFILE_RELEASE_DEBUG: "0"
+    organize:
+      codex: bin/codex
+  # As this is a sctricly confined snap - include some commonly used utils #
+  utils:
+    plugin: nil
+    stage-packages:
+      - fd-find
+      - git
+      - gnupg
+      - jq
+      - less
+      - ripgrep
+      - unzip
+      - zip
+
+apps:
+  codex:
+    command: bin/codex
+    environment:
+      CODEX_HOME: $SNAP_USER_DATA/.codex
+    plugs:
+      - network
+      - network-bind
+      - desktop
+      - home
