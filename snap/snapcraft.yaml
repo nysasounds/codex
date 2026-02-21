@@ -9,11 +9,7 @@ grade: devel
 confinement: strict
 platforms:
   amd64:
-    build-on:
-      - amd64
   arm64:
-    build-on:
-      - arm64
 source-code: https://github.com/nysasounds/codex
 issues: https://github.com/nysasounds/codex/issues
 
