@@ -66,7 +66,7 @@ parts:
     plugin: nil
     override-build: |
       install -d "${CRAFT_PART_INSTALL}/usr/share/bash-completion"
-      ${CRAFT_STAGE}/bin/codex completion > "${CRAFT_PART_INSTALL}/usr/share/bash-completion/codex"
+      ${CRAFT_STAGE}/bin/codex completion bash > "${CRAFT_PART_INSTALL}/usr/share/bash-completion/codex"
     after:
       - codex
 
