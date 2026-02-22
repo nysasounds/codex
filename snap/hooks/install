@@ -1,2 +1,8 @@
 #!/bin/bash
+
+set -eux
+
+HOOK_LOG="${SNAP_COMMON}/hooks/${SNAP_REVISION}/$(basename "$0").log" && mkdir -p "${HOOK_LOG%/*}"
+exec &> >(tee -a "${HOOK_LOG}")
+
 mkdir -p "${SNAP_USER_DATA}/.codex"
