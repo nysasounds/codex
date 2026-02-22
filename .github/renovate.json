@@ -1,13 +1,18 @@
 {
   "extends": [
-    "config:base"
+    "config:recommended"
   ],
-  "enabledManagers": ["regex"],
-  "regexManagers": [
+  "enabledManagers": [
+    "custom.regex"
+  ],
+  "customManagers": [
     {
-      "fileMatch": ["^snap/snapcraft.yaml$"],
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^snap/snapcraft.yaml$/"
+      ],
       "matchStrings": [
-	      "source-tag: (?<currentValue>.*)"
+        "source-tag: (?<currentValue>.*)"
       ],
       "depNameTemplate": "openai/codex",
       "datasourceTemplate": "github-tags"
@@ -15,9 +20,16 @@
   ],
   "packageRules": [
     {
-      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "pin",
+        "digest"
+      ],
       "automerge": true
     }
   ],
-  "schedule": ["after 6pm"]
+  "schedule": [
+    "after 6pm"
+  ]
 }
