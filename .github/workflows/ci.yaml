@@ -65,7 +65,7 @@ jobs:
 
       - run: echo "🍏 Job status ${{ job.status }}"
 
-      - name: Basic Verify
+      - name: Verify
         run: |
           codex --version
 
@@ -76,7 +76,8 @@ jobs:
           # Make sure it basically runs
           codex help |grep -E "^Codex CLI"
           # Make sure there's no warnings #
-          _WARNINGS="$(codex help login >/dev/null)"
+          codex help login >/dev/null 2>snap.warnings
+          _WARNINGS="$(cat snap.warnings)"
           [ -z "${_WARNINGS}" ] || echo "${_WARNINGS}"
           [ -z "${_WARNINGS}" ] || exit 1
 
