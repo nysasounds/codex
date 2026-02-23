@@ -42,9 +42,9 @@ sudo snap install codex
 
 ### Configuration
 
-Configuration lives under `$HOME/snap/codex/current/.codex`
+Configuration lives under `$HOME/snap/codex/current`
 
 If you wish to, you could symlink this back to the standard/default location for convenience:
 ```
-ln -s "${HOME}/snap/codex/current/.codex" "${HOME}/.codex"
+ln -s "${HOME}/snap/codex/current" "${HOME}/.codex"
 ```

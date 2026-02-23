@@ -75,7 +75,7 @@ apps:
     command: bin/codex
     completer: usr/share/bash-completion/codex
     environment:
-      CODEX_HOME: $SNAP_USER_DATA/.codex
+      CODEX_HOME: $SNAP_USER_DATA
     plugs:
       - network
       - network-bind
