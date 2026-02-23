@@ -73,6 +73,11 @@ jobs:
 
       - name: Snap Basic
         run: |
+          # Make sure it basically runs
           codex help |grep -E "^Codex CLI"
+          # Make sure there's no warnings #
+          _WARNINGS="$(codex help login >/dev/null)"
+          [ -z "${_WARNINGS}" ] || echo "${_WARNINGS}"
+          [ -z "${_WARNINGS}" ] || exit 1
 
       - run: echo "🍏 Job status ${{ job.status }}"
