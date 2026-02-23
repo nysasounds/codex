@@ -54,6 +54,7 @@ parts:
   utils:
     plugin: nil
     stage-packages:
+      - coreutils
       - fd-find
       - git
       - gnupg
