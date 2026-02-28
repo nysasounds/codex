@@ -18,7 +18,7 @@ parts:
   codex:
     plugin: rust
     source: https://github.com/openai/codex.git
-    source-tag: rust-v0.104.0
+    source-tag: rust-v0.106.0
     source-depth: 1
     source-subdir: codex-rs
     override-pull: |
