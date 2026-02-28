@@ -32,7 +32,7 @@ jobs:
 
       - name: Upload
         if: github.repository == 'nysasounds/codex'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: codex.snap
           path: codex.snap
@@ -46,7 +46,7 @@ jobs:
     steps:
 
       - name: Download
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: codex.snap
 
