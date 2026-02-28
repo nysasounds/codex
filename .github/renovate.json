@@ -2,6 +2,7 @@
   "extends": [
     "config:recommended"
   ],
+  "platformAutomerge": true,
   "customManagers": [
     {
       "customType": "regex",
@@ -20,9 +21,7 @@
     {
       "matchUpdateTypes": [
         "minor",
-        "patch",
-        "pin",
-        "digest"
+        "patch"
       ],
       "automerge": true
     }
