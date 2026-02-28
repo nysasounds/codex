@@ -2,20 +2,18 @@
   "extends": [
     "config:recommended"
   ],
-  "enabledManagers": [
-    "custom.regex"
-  ],
   "customManagers": [
     {
       "customType": "regex",
-      "managerFilePatterns": [
-        "/^snap/snapcraft.yaml$/"
+      "fileMatch": [
+        "^snap/snapcraft\\.yaml$"
       ],
       "matchStrings": [
-        "source-tag: (?<currentValue>.*)"
+        "source-tag:\\s*['\"]?(?<currentValue>[^'\"\\n]+)['\"]?"
       ],
       "depNameTemplate": "openai/codex",
-      "datasourceTemplate": "github-tags"
+      "datasourceTemplate": "github-tags",
+      "extractVersionTemplate": "^rust-v(?<version>.*)$"
     }
   ],
   "packageRules": [
