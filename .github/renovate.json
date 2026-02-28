@@ -10,7 +10,7 @@
         "/^snap/snapcraft\\.yaml$/"
       ],
       "matchStrings": [
-        "source-tag:\\s*['\"]?(?<currentValue>[^'\"\\n]+)['\"]?"
+        "source-tag:\\s*['\"]?rust-v(?<currentValue>[^'\"\\n]+)['\"]?"
       ],
       "depNameTemplate": "openai/codex",
       "datasourceTemplate": "github-tags",
