@@ -55,13 +55,7 @@ jobs:
       - name: Install
         run: |
           # Install #
-          sudo snap install --dangerous ./codex.snap
-
-          # Connections #
-          sudo snap connect codex:desktop :desktop
-          sudo snap connect codex:home :home
-          sudo snap connect codex:network :network
-          sudo snap connect codex:network-bind :network-bind
+          sudo snap install --dangerous --classic ./codex.snap
 
       - run: echo "🍏 Job status ${{ job.status }}"
 

@@ -6,7 +6,7 @@ description: |
   Codex is OpenAI’s coding agent for software development. ChatGPT Plus,
   Pro, Business, Edu, and Enterprise plans include Codex.
 grade: stable
-confinement: strict
+confinement: classic
 platforms:
   amd64:
   arm64:
@@ -50,19 +50,6 @@ parts:
       install "${CRAFT_PART_SRC}/NOTICE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
     organize:
       codex: bin/codex
-  # As this is a sctricly confined snap - include some commonly used utils #
-  utils:
-    plugin: nil
-    stage-packages:
-      - coreutils
-      - fd-find
-      - git
-      - gnupg
-      - jq
-      - less
-      - ripgrep
-      - unzip
-      - zip
   completer:
     plugin: nil
     override-build: |
@@ -75,10 +62,6 @@ apps:
   codex:
     command: bin/codex
     completer: usr/share/bash-completion/codex
+    # FIXME - decide whether to migrate this back to HOME or not #
     environment:
       CODEX_HOME: $SNAP_USER_DATA
-    plugs:
-      - network
-      - network-bind
-      - desktop
-      - home
