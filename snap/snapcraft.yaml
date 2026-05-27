@@ -55,14 +55,30 @@ parts:
     plugin: nil
     stage-packages:
       - coreutils
+      - curl
+      - diffutils
       - fd-find
+      - file
+      - gawk
       - git
       - gnupg
+      - grep
       - jq
       - less
+      - openssh-client
+      - openssl
+      - patch
+      - perl
       - ripgrep
+      - rsync
+      - sed
+      - tar
+      - tree
       - unzip
+      - wget
+      - yq
       - zip
+
   completer:
     plugin: nil
     override-build: |
