@@ -1,0 +1,118 @@
+#!/bin/sh
+set -eu
+
+snap_mount_root="${SNAP%/*}"
+components_root="$snap_mount_root/components/$SNAP_REVISION"
+base_path="$PATH"
+base_ld_library_path="${LD_LIBRARY_PATH:-}"
+
+component_path() {
+    component_root="$1"
+    printf '%s/bin:%s/usr/bin' "$component_root" "$component_root"
+}
+
+component_ld_library_path() {
+    component_root="$1"
+    printf '%s/usr/lib:%s/usr/lib/x86_64-linux-gnu:%s/usr/lib/aarch64-linux-gnu:%s/lib:%s/lib/x86_64-linux-gnu:%s/lib/aarch64-linux-gnu' \
+        "$component_root" "$component_root" "$component_root" "$component_root" "$component_root" "$component_root"
+}
+
+run_python_component_smoke_test() {
+    component="$1"
+    component_root="$2"
+    python_bin="$component_root/bin/python3"
+
+    if [ ! -x "$python_bin" ]; then
+        python_bin="$component_root/usr/bin/python3"
+    fi
+
+    if [ ! -x "$python_bin" ]; then
+        printf '%s_smoke_test=missing-python3\n' "$component"
+        return 0
+    fi
+
+    test_path="$(component_path "$component_root"):$base_path"
+    test_ld_library_path="$(component_ld_library_path "$component_root"):$base_ld_library_path"
+
+    if output="$(PATH="$test_path" LD_LIBRARY_PATH="$test_ld_library_path" \
+        "$python_bin" -c 'import pip, ssl, sqlite3, venv, virtualenv, zlib' 2>&1)"; then
+        printf '%s_smoke_test=pass\n' "$component"
+    else
+        status="$?"
+        printf '%s_smoke_test=fail exit=%s\n' "$component" "$status"
+        printf '%s_smoke_test_output<<EOF\n%s\nEOF\n' "$component" "$output"
+    fi
+}
+
+for component in tools-python-3-12; do
+    component_root="$components_root/$component"
+    if [ -d "$component_root" ]; then
+        PATH="$(component_path "$component_root"):$PATH"
+        LD_LIBRARY_PATH="$(component_ld_library_path "$component_root"):${LD_LIBRARY_PATH:-}"
+    fi
+done
+
+export PATH LD_LIBRARY_PATH
+
+if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
+    printf 'components_root=%s\n' "$components_root"
+    printf 'CODEX_HOME=%s\n' "${CODEX_HOME:-}"
+    printf 'PATH=%s\n' "$PATH"
+    printf 'LD_LIBRARY_PATH=%s\n' "${LD_LIBRARY_PATH:-}"
+
+    for component in tools-python-3-12; do
+        component_root="$components_root/$component"
+        if [ -d "$component_root" ]; then
+            printf '%s=installed\n' "$component"
+        else
+            printf '%s=missing\n' "$component"
+        fi
+    done
+
+    printf '\n[component smoke tests]\n'
+    for component in tools-python-3-12; do
+        component_root="$components_root/$component"
+        if [ -d "$component_root" ]; then
+            run_python_component_smoke_test "$component" "$component_root"
+        fi
+    done
+
+    printf '\n[selected tools]\n'
+    if command -v python3 >/dev/null 2>&1; then
+        printf 'python3=%s\n' "$(command -v python3)"
+        if output="$(python3 --version 2>&1)"; then
+            printf 'python3_version=%s\n' "$output"
+        else
+            status="$?"
+            printf 'python3_version=fail exit=%s\n' "$status"
+            printf 'python3_version_output<<EOF\n%s\nEOF\n' "$output"
+        fi
+    else
+        printf 'python3=missing\n'
+    fi
+
+    if command -v pip3 >/dev/null 2>&1; then
+        printf 'pip3=%s\n' "$(command -v pip3)"
+        if output="$(pip3 --version 2>&1)"; then
+            printf 'pip3_version=%s\n' "$output"
+        else
+            status="$?"
+            printf 'pip3_version=fail exit=%s\n' "$status"
+            printf 'pip3_version_output<<EOF\n%s\nEOF\n' "$output"
+        fi
+    else
+        printf 'pip3=missing\n'
+    fi
+
+    exit 0
+fi
+
+if [ "${CODEX_WRAPPER_TEST:-}" = "1" ]; then
+    "${SHELL:-/bin/sh}"
+    status="$?"
+    exit "$status"
+fi
+
+"$SNAP/bin/migrate-codex-home"
+
+exec "$SNAP/bin/codex" "$@"

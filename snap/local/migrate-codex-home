@@ -1,0 +1,57 @@
+#!/bin/sh
+set -eu
+
+old_home="${SNAP_USER_DATA:?}"
+new_home="${SNAP_USER_COMMON:?}"
+marker="$new_home/.codex-home-migration-v1"
+
+dir_has_entries() {
+    [ -d "$1" ] && [ -n "$(ls -A "$1" 2>/dev/null)" ]
+}
+
+pause_for_user() {
+    if [ -t 0 ]; then
+        printf '\nPress Enter to continue...' >&2
+        IFS= read -r _ || true
+    fi
+}
+
+if [ -e "$marker" ]; then
+    exit 0
+fi
+
+mkdir -p "$new_home"
+
+if [ "$old_home" = "$new_home" ] || ! dir_has_entries "$old_home"; then
+    : >"$marker"
+    exit 0
+fi
+
+if dir_has_entries "$new_home"; then
+    : >"$marker"
+    exit 0
+fi
+
+# NOTE: `rsync -ar` is required here, as using `--files-from` removes the `r` flag by default #
+find "$old_home/" -mindepth 1 -maxdepth 1 -printf "%P\0" | rsync -ar --files-from=- --from0 "$old_home/" "$new_home/"
+: >"$marker"
+
+cat >&2 <<EOF
+Codex snap has migrated CODEX_HOME.
+
+Your Codex data has been copied from:
+  $old_home
+
+to the new shared snap location:
+  $new_home
+
+If you want Codex's standard/default location to point at the snap-managed
+configuration, create this symlink:
+  ln -s "\${HOME}/snap/codex/common" "\${HOME}/.codex"
+
+If you already have \${HOME}/.codex as a symlink to \$HOME/snap/codex/current,
+update it to point at the shared snap location instead:
+  ln -sfnT "\${HOME}/snap/codex/common" "\${HOME}/.codex"
+EOF
+
+pause_for_user

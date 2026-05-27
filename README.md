@@ -40,11 +40,57 @@ Install from the global snap store
 sudo snap install codex
 ```
 
+## Optional language tooling components
+
+Codex runs in a strictly confined snap. Tools that are not provided by the base
+snap, the main Codex snap, or the current project need to be packaged with Codex
+before Codex can use them reliably inside the confined environment.
+
+To not overly bloat the main snap packaging, but still provide flexibility, optional language tooling are shipped as snap components. Component support
+requires snapd 2.67 or newer. For example, to install the Python component alongside Codex with:
+
+```
+sudo snap install codex+tools-python-3-12
+```
+
+If Codex is already installed, the same command installs the missing component.
+
+Available components can be listed with:
+
+```
+snap components codex
+```
+
+
+### Python 3.12 component
+
+The `tools-python-3-12` component provides a Python 3.12 environment for Codex
+shell tasks. When installed, the Codex wrapper prepends the component's `bin`
+directory to `PATH`, so `python3`, `pip3`, `setuptools`, `wheel`, and
+`virtualenv` resolve from the component.
+
+The component is built with Snapcraft's `python` plugin. It behaves like a
+plugin-managed Python environment rather than a full distro Python install.
+`pip3` and `python3 -m pip` are expected to work normally.
+
+One quirk is virtual environment creation. The plugin-managed environment does
+not include the stdlib `ensurepip` module, so plain stdlib seeding is not
+available. To keep common Python project setup commands working, the component
+includes `virtualenv` and wraps `python3 -m venv ...` so it creates the requested
+environment through `virtualenv` instead.
+
 ### Configuration
 
-Configuration lives under `$HOME/snap/codex/current`
+Configuration lives under `$HOME/snap/codex/common`.
 
-If you wish to, you could symlink this back to the standard/default location for convenience:
+If you want Codex's standard/default location to point at the snap-managed
+configuration, create this symlink:
 ```
-ln -s "${HOME}/snap/codex/current" "${HOME}/.codex"
+ln -s "${HOME}/snap/codex/common" "${HOME}/.codex"
+```
+
+If you already have `${HOME}/.codex` as a symlink to the old location, `$HOME/snap/codex/current`,
+update it to point at the current snap location instead:
+```
+ln -sfnT "${HOME}/snap/codex/common" "${HOME}/.codex"
 ```

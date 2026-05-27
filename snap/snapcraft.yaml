@@ -14,6 +14,12 @@ source-code: https://github.com/nysasounds/codex
 issues: https://github.com/nysasounds/codex/issues
 license: Apache-2.0
 
+components:
+  tools-python-3-12:
+    type: standard
+    summary: Optional Python 3.12 development tools
+    description: Python 3.12 runtime from Ubuntu 24.04 LTS plus Python tooling for Codex shell tasks
+    version: "3.12-ubuntu-24.04-lts"
 parts:
   codex:
     plugin: rust
@@ -44,12 +50,28 @@ parts:
       - CARGO_PROFILE_RELEASE_DEBUG: "0"
     override-build: |
       craftctl default
+
+      # Move main binary to expected location #
+      install -d "${CRAFT_PART_INSTALL}/bin"
+      mv "${CRAFT_PART_INSTALL}/codex" "${CRAFT_PART_INSTALL}/bin/codex"
+      chmod 755 "${CRAFT_PART_INSTALL}/bin/codex"
+
+      # Add argv0 helpers #
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/apply_patch"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/applypatch"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/codex-linux-sandbox"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/codex-execve-wrapper"
+
       # Include the current license info #
       install -d "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}"
       install "${CRAFT_PART_SRC}/LICENSE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
       install "${CRAFT_PART_SRC}/NOTICE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
+  launcher:
+    plugin: dump
+    source: snap/local
     organize:
-      codex: bin/codex
+      codex-wrapper: bin/codex-wrapper
+      migrate-codex-home: bin/migrate-codex-home
   # As this is a sctricly confined snap - include some commonly used utils #
   utils:
     plugin: nil
@@ -79,6 +101,34 @@ parts:
       - yq
       - zip
 
+  tools-python-3-12:
+    plugin: python
+    source: snap/local
+    stage-packages:
+      - python3
+    python-packages:
+      - pip
+      - setuptools
+      - virtualenv
+      - wheel
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      if [ -e "${root}/bin/python3" ]; then
+        mv "${root}/bin/python3" "${root}/bin/python3.real"
+        install -m 755 "${CRAFT_PART_SRC}/python3-component-wrapper" "${root}/bin/python3"
+      fi
+    organize:
+      payload: (component/tools-python-3-12)/
+
   completer:
     plugin: nil
     override-build: |
@@ -89,10 +139,10 @@ parts:
 
 apps:
   codex:
-    command: bin/codex
+    command: bin/codex-wrapper
     completer: usr/share/bash-completion/codex
     environment:
-      CODEX_HOME: $SNAP_USER_DATA
+      CODEX_HOME: $SNAP_USER_COMMON
     plugs:
       - network
       - network-bind
