@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu
+
+snap_root="${SNAP:-}"
+if [ -z "$snap_root" ]; then
+  command_path="$0"
+  case "$command_path" in
+    */*) ;;
+    *) command_path="$(command -v -- "$0")" ;;
+  esac
+  snap_root="${command_path%/usr/bin/*}"
+fi
+
+tool="${0##*/}"
+python_bin="$snap_root/libexec/python-utils/usr/bin/python3"
+script="$snap_root/libexec/python-utils/usr/bin/$tool"
+python_path="$snap_root/libexec/python-utils/usr/lib/python3/dist-packages"
+
+if [ ! -e "$script" ]; then
+  script="$snap_root/libexec/python-utils/scripts/$tool"
+fi
+
+if [ ! -x "$python_bin" ]; then
+  python_bin="$(command -v python3)"
+fi
+
+if [ ! -e "$script" ]; then
+  printf '%s: missing Python utility script: %s\n' "$0" "$script" >&2
+  exit 127
+fi
+
+export PYTHONPATH="$python_path${PYTHONPATH:+:$PYTHONPATH}"
+export RRSYNC_RSYNC="${RRSYNC_RSYNC:-$snap_root/usr/bin/rsync}"
+
+exec "$python_bin" "$script" "$@"
