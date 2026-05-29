@@ -106,6 +106,7 @@ parts:
   # As this is a sctricly confined snap - include some commonly used utils #
   utils:
     plugin: nil
+    source: snap/local
     stage-packages:
       - coreutils
       - curl
@@ -129,8 +130,50 @@ parts:
       - tree
       - unzip
       - wget
-      - yq
       - zip
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      install -d "${CRAFT_PART_INSTALL}/libexec/python-utils/scripts"
+      if [ -e "${CRAFT_PART_INSTALL}/usr/bin/rrsync" ]; then
+        mv "${CRAFT_PART_INSTALL}/usr/bin/rrsync" "${CRAFT_PART_INSTALL}/libexec/python-utils/scripts/rrsync"
+        sed -i "s#^RSYNC = '/usr/bin/rsync'#import os\\nRSYNC = os.environ.get('RRSYNC_RSYNC', '/usr/bin/rsync')#" \
+          "${CRAFT_PART_INSTALL}/libexec/python-utils/scripts/rrsync"
+        install -m 755 "${CRAFT_PART_SRC}/python-utility-wrapper" "${CRAFT_PART_INSTALL}/usr/bin/rrsync"
+      fi
+
+  utils-python:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - python3
+      - python3-pkg-resources
+      - yq
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/libexec/python-utils"
+      install -d "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name libexec \
+        -exec mv {} "${root}/" \;
+
+      install -d "${CRAFT_PART_INSTALL}/usr/bin"
+      for tool in \
+        activate-global-python-argcomplete \
+        python-argcomplete-check-easy-install-script \
+        register-python-argcomplete \
+        tomlq \
+        xq-python \
+        yq; do
+        if [ -e "${root}/usr/bin/${tool}" ]; then
+          install -m 755 "${CRAFT_PART_SRC}/python-utility-wrapper" "${CRAFT_PART_INSTALL}/usr/bin/${tool}"
+        fi
+      done
 
   tools-python-3-12:
     plugin: python
