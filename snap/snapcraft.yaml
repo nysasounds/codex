@@ -20,6 +20,25 @@ components:
     summary: Optional Python 3.12 development tools
     description: Python 3.12 runtime from Ubuntu 24.04 LTS plus Python tooling for Codex shell tasks
     version: "3.12-ubuntu-24.04-lts"
+
+  tools-go-1-23:
+    type: standard
+    summary: Optional Go 1.23 development tools
+    description: Go 1.23 toolchain from Ubuntu 24.04 LTS for Codex shell tasks
+    version: "1.23-ubuntu-24.04-lts"
+
+  tools-go-1-24:
+    type: standard
+    summary: Optional Go 1.24 development tools
+    description: Go 1.24 toolchain from Ubuntu 24.04 LTS for Codex shell tasks
+    version: "1.24-ubuntu-24.04-lts"
+
+  tools-native-build:
+    type: standard
+    summary: Optional native build tools
+    description: GCC, make, libc headers, and pkg-config for native builds and CGO
+    version: "ubuntu-24.04-lts"
+
 parts:
   codex:
     plugin: rust
@@ -128,6 +147,104 @@ parts:
       fi
     organize:
       payload: (component/tools-python-3-12)/
+
+  tools-go-1-23:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - golang-1.23-go
+      - golang-1.23-src
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      install -d "${root}/bin" "${root}/meta"
+      printf '1.23\n' > "${root}/meta/go-version"
+
+      for tool in go go1.23 gofmt gofmt1.23; do
+        install -m 755 "${CRAFT_PART_SRC}/go-component-wrapper" "${root}/bin/${tool}"
+      done
+    organize:
+      payload: (component/tools-go-1-23)/
+
+  tools-go-1-24:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - golang-1.24-go
+      - golang-1.24-src
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      install -d "${root}/bin" "${root}/meta"
+      printf '1.24\n' > "${root}/meta/go-version"
+
+      for tool in go go1.24 gofmt gofmt1.24; do
+        install -m 755 "${CRAFT_PART_SRC}/go-component-wrapper" "${root}/bin/${tool}"
+      done
+    organize:
+      payload: (component/tools-go-1-24)/
+
+  tools-native-build:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - binutils
+      - build-essential
+      - libc6
+      - libc6-dev
+      - libgcc-s1
+      - libstdc++6
+      - make
+      - pkg-config
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      install -d "${root}/lib" "${root}/lib64"
+      if [ -d "${root}/usr/lib/x86_64-linux-gnu" ]; then
+        ln -s ../usr/lib/x86_64-linux-gnu "${root}/lib/x86_64-linux-gnu"
+      fi
+      if [ -d "${root}/usr/lib/aarch64-linux-gnu" ]; then
+        ln -s ../usr/lib/aarch64-linux-gnu "${root}/lib/aarch64-linux-gnu"
+      fi
+      if [ -e "${root}/usr/lib64/ld-linux-x86-64.so.2" ]; then
+        ln -s ../usr/lib64/ld-linux-x86-64.so.2 "${root}/lib64/ld-linux-x86-64.so.2"
+      fi
+
+      install -d "${root}/bin"
+      for tool in cc c++ gcc g++; do
+        install -m 755 "${CRAFT_PART_SRC}/native-build-tool-wrapper" "${root}/bin/${tool}"
+      done
+      for tool_path in "${root}"/usr/bin/gcc-* "${root}"/usr/bin/g++-*; do
+        if [ -e "${tool_path}" ]; then
+          install -m 755 "${CRAFT_PART_SRC}/native-build-tool-wrapper" "${root}/bin/${tool_path##*/}"
+        fi
+      done
+    organize:
+      payload: (component/tools-native-build)/
 
   completer:
     plugin: nil

@@ -1,0 +1,20 @@
+#!/bin/sh
+set -eu
+
+command_path="$0"
+case "$command_path" in
+  */*) ;;
+  *) command_path="$(command -v -- "$0")" ;;
+esac
+
+bin_dir="${command_path%/*}"
+component_root="${bin_dir%/bin}"
+version="$(cat "$component_root/meta/go-version")"
+
+case "${command_path##*/}" in
+  gofmt*) tool="gofmt" ;;
+  *) tool="go" ;;
+esac
+
+export GOROOT="$component_root/usr/lib/go-$version"
+exec "$GOROOT/bin/$tool" "$@"
