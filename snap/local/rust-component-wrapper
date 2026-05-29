@@ -1,0 +1,37 @@
+#!/bin/sh
+set -eu
+
+command_path="$0"
+case "$command_path" in
+  */*) ;;
+  *) command_path="$(command -v -- "$0")" ;;
+esac
+
+bin_dir="${command_path%/*}"
+component_root="${bin_dir%/bin}"
+version="$(cat "$component_root/meta/rust-version")"
+tool="${command_path##*/}"
+rust_bin="$component_root/usr/lib/rust-$version/bin"
+
+case "$tool" in
+  cargo|cargo[0-9].*) real_tool="cargo" ;;
+  rustc|rustc[0-9].*) real_tool="rustc" ;;
+  rustdoc|rustdoc[0-9].*) real_tool="rustdoc" ;;
+  rustfmt|rustfmt[0-9].*) real_tool="rustfmt" ;;
+  cargo-fmt|cargo-fmt[0-9].*) real_tool="cargo-fmt" ;;
+  cargo-clippy|cargo-clippy[0-9].*) real_tool="cargo-clippy" ;;
+  clippy-driver|clippy-driver[0-9].*) real_tool="clippy-driver" ;;
+  *) real_tool="$tool" ;;
+esac
+
+real_path="$rust_bin/$real_tool"
+if [ ! -x "$real_path" ]; then
+  printf '%s: missing Rust tool: %s\n' "$0" "$real_path" >&2
+  exit 127
+fi
+
+export PATH="$component_root/bin:$rust_bin:$component_root/usr/bin:$PATH"
+export RUSTC="${RUSTC:-$rust_bin/rustc}"
+export RUSTDOC="${RUSTDOC:-$rust_bin/rustdoc}"
+
+exec "$real_path" "$@"

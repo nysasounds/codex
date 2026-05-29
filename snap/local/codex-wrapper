@@ -8,7 +8,7 @@ base_ld_library_path="${LD_LIBRARY_PATH:-}"
 base_cpath="${CPATH:-}"
 base_library_path="${LIBRARY_PATH:-}"
 base_pkg_config_path="${PKG_CONFIG_PATH:-}"
-tool_components="tools-native-build tools-python-3-12 tools-go-1-23 tools-go-1-24"
+tool_components="tools-python-3-12 tools-go-1-23 tools-go-1-24 tools-rust-1-80 tools-rust-1-82 tools-native-build"
 
 component_path() {
     component_root="$1"
@@ -108,6 +108,31 @@ run_native_build_component_smoke_test() {
     fi
 }
 
+run_rust_component_smoke_test() {
+    component="$1"
+    component_root="$2"
+    rustc_bin="$component_root/bin/rustc"
+
+    if [ ! -x "$rustc_bin" ]; then
+        printf '%s_smoke_test=missing-rustc\n' "$component"
+        return 0
+    fi
+
+    test_path="$(component_path "$component_root"):$base_path"
+    test_ld_library_path="$(component_ld_library_path "$component_root"):$base_ld_library_path"
+    test_cargo_home="${CARGO_HOME:-${SNAP_USER_COMMON:-${CODEX_HOME:-/tmp}}/cargo}"
+
+    if output="$(PATH="$test_path" LD_LIBRARY_PATH="$test_ld_library_path" CARGO_HOME="$test_cargo_home" \
+        sh -c 'rustc --version && cargo --version && rustfmt --version && cargo clippy --version' 2>&1)"; then
+        printf '%s_smoke_test=pass\n' "$component"
+        printf '%s_versions<<EOF\n%s\nEOF\n' "$component" "$output"
+    else
+        status="$?"
+        printf '%s_smoke_test=fail exit=%s\n' "$component" "$status"
+        printf '%s_smoke_test_output<<EOF\n%s\nEOF\n' "$component" "$output"
+    fi
+}
+
 run_component_smoke_test() {
     component="$1"
     component_root="$2"
@@ -115,6 +140,7 @@ run_component_smoke_test() {
     case "$component" in
         tools-python-*) run_python_component_smoke_test "$component" "$component_root" ;;
         tools-go-*) run_go_component_smoke_test "$component" "$component_root" ;;
+        tools-rust-*) run_rust_component_smoke_test "$component" "$component_root" ;;
         tools-native-build) run_native_build_component_smoke_test "$component" "$component_root" ;;
     esac
 }
@@ -137,7 +163,12 @@ if command -v go >/dev/null 2>&1; then
     GOENV="${GOENV:-$go_state_root/go/env}"
 fi
 
-export PATH LD_LIBRARY_PATH CPATH LIBRARY_PATH PKG_CONFIG_PATH GOPATH GOCACHE GOENV
+if command -v cargo >/dev/null 2>&1 || command -v rustc >/dev/null 2>&1; then
+    rust_state_root="${SNAP_USER_COMMON:-${CODEX_HOME:-$HOME/snap/codex/common}}"
+    CARGO_HOME="${CARGO_HOME:-$rust_state_root/cargo}"
+fi
+
+export PATH LD_LIBRARY_PATH CPATH LIBRARY_PATH PKG_CONFIG_PATH GOPATH GOCACHE GOENV CARGO_HOME
 
 if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
     printf 'components_root=%s\n' "$components_root"
@@ -150,6 +181,7 @@ if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
     printf 'GOPATH=%s\n' "${GOPATH:-}"
     printf 'GOCACHE=%s\n' "${GOCACHE:-}"
     printf 'GOENV=%s\n' "${GOENV:-}"
+    printf 'CARGO_HOME=%s\n' "${CARGO_HOME:-}"
 
     for component in $tool_components; do
         component_root="$components_root/$component"
@@ -206,6 +238,45 @@ if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
         fi
     else
         printf 'go=missing\n'
+    fi
+
+    if command -v rustc >/dev/null 2>&1; then
+        printf 'rustc=%s\n' "$(command -v rustc)"
+        if output="$(rustc --version 2>&1)"; then
+            printf 'rustc_version=%s\n' "$output"
+        else
+            status="$?"
+            printf 'rustc_version=fail exit=%s\n' "$status"
+            printf 'rustc_version_output<<EOF\n%s\nEOF\n' "$output"
+        fi
+    else
+        printf 'rustc=missing\n'
+    fi
+
+    if command -v cargo >/dev/null 2>&1; then
+        printf 'cargo=%s\n' "$(command -v cargo)"
+        if output="$(cargo --version 2>&1)"; then
+            printf 'cargo_version=%s\n' "$output"
+        else
+            status="$?"
+            printf 'cargo_version=fail exit=%s\n' "$status"
+            printf 'cargo_version_output<<EOF\n%s\nEOF\n' "$output"
+        fi
+    else
+        printf 'cargo=missing\n'
+    fi
+
+    if command -v rustfmt >/dev/null 2>&1; then
+        printf 'rustfmt=%s\n' "$(command -v rustfmt)"
+        if output="$(rustfmt --version 2>&1)"; then
+            printf 'rustfmt_version=%s\n' "$output"
+        else
+            status="$?"
+            printf 'rustfmt_version=fail exit=%s\n' "$status"
+            printf 'rustfmt_version_output<<EOF\n%s\nEOF\n' "$output"
+        fi
+    else
+        printf 'rustfmt=missing\n'
     fi
 
     if command -v gcc >/dev/null 2>&1; then
