@@ -54,11 +54,13 @@ language tooling is shipped as snap components. Component support requires snapd
 sudo snap install codex+tools-python-3-12
 ```
 
-Go and native build tooling are also available as components:
+Additional language and native build tooling are also available as components:
 
 ```
 sudo snap install codex+tools-go-1-23
 sudo snap install codex+tools-go-1-24
+sudo snap install codex+tools-rust-1-80
+sudo snap install codex+tools-rust-1-82
 sudo snap install codex+tools-native-build
 ```
 
@@ -108,6 +110,36 @@ GOENV=$HOME/snap/codex/common/go/env
 ```
 
 These defaults avoid writing Go caches into revision-specific snap directories.
+
+### Rust components
+
+The `tools-rust-1-80` and `tools-rust-1-82` components provide Rust toolchains
+from Ubuntu packages for Codex shell tasks. Each component exposes versioned
+commands such as `rustc1.80`, `cargo1.80`, `rustfmt1.80`, `rustc1.82`,
+`cargo1.82`, and `rustfmt1.82`.
+
+If more than one Rust component is installed, the unversioned `rustc`, `cargo`,
+`rustdoc`, `rustfmt`, `cargo-clippy`, and `clippy-driver` commands resolve to
+the newest installed component supported by the wrapper. Versioned commands
+remain available for projects that need a specific toolchain.
+
+The Rust wrappers keep versioned Cargo commands paired with their matching
+compiler. For example, `cargo1.80` uses the Rust 1.80 `rustc`, even if the Rust
+1.82 component is also installed.
+
+The Codex wrapper sets a writable default for Cargo state when a Rust component
+is installed:
+
+```
+CARGO_HOME=$HOME/snap/codex/common/cargo
+```
+
+The Rust components do not include `rustup`, and they do not download missing
+toolchains from `rust-toolchain.toml`. Projects that need a specific toolchain
+should use one of the packaged versioned commands. Rust crates that compile or
+link native code may also need the `tools-native-build` component, and projects
+that depend on additional native libraries still need those libraries and
+development headers to be packaged in Codex or another component.
 
 ### Native build component
 
