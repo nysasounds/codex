@@ -1,0 +1,26 @@
+#!/bin/sh
+set -eu
+
+command_path="$0"
+case "$command_path" in
+  */*) ;;
+  *) command_path="$(command -v -- "$0")" ;;
+esac
+
+bin_dir="${command_path%/*}"
+component_root="${bin_dir%/bin}"
+tool="${command_path##*/}"
+
+case "$tool" in
+  cc) real_tool="gcc" ;;
+  c++) real_tool="g++" ;;
+  *) real_tool="$tool" ;;
+esac
+
+export CPATH="$component_root/usr/include:$component_root/usr/include/x86_64-linux-gnu:$component_root/usr/include/aarch64-linux-gnu:${CPATH:-}"
+export LIBRARY_PATH="$component_root/usr/lib:$component_root/usr/lib/x86_64-linux-gnu:$component_root/usr/lib/aarch64-linux-gnu:$component_root/lib:$component_root/lib/x86_64-linux-gnu:$component_root/lib/aarch64-linux-gnu:${LIBRARY_PATH:-}"
+export LD_LIBRARY_PATH="$component_root/usr/lib:$component_root/usr/lib/x86_64-linux-gnu:$component_root/usr/lib/aarch64-linux-gnu:$component_root/lib:$component_root/lib/x86_64-linux-gnu:$component_root/lib/aarch64-linux-gnu:${LD_LIBRARY_PATH:-}"
+export PKG_CONFIG_PATH="$component_root/usr/lib/pkgconfig:$component_root/usr/lib/x86_64-linux-gnu/pkgconfig:$component_root/usr/lib/aarch64-linux-gnu/pkgconfig:$component_root/usr/share/pkgconfig:${PKG_CONFIG_PATH:-}"
+export GCC_EXEC_PREFIX="$component_root/usr/lib/gcc/"
+
+exec "$component_root/usr/bin/$real_tool" --sysroot="$component_root" "$@"

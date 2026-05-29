@@ -46,11 +46,20 @@ Codex runs in a strictly confined snap. Tools that are not provided by the base
 snap, the main Codex snap, or the current project need to be packaged with Codex
 before Codex can use them reliably inside the confined environment.
 
-To not overly bloat the main snap packaging, but still provide flexibility, optional language tooling are shipped as snap components. Component support
-requires snapd 2.67 or newer. For example, to install the Python component alongside Codex with:
+To avoid bloating the main snap while still providing flexibility, optional
+language tooling is shipped as snap components. Component support requires snapd
+2.67 or newer. For example, install the Python component alongside Codex with:
 
 ```
 sudo snap install codex+tools-python-3-12
+```
+
+Go and native build tooling are also available as components:
+
+```
+sudo snap install codex+tools-go-1-23
+sudo snap install codex+tools-go-1-24
+sudo snap install codex+tools-native-build
 ```
 
 If Codex is already installed, the same command installs the missing component.
@@ -78,6 +87,39 @@ not include the stdlib `ensurepip` module, so plain stdlib seeding is not
 available. To keep common Python project setup commands working, the component
 includes `virtualenv` and wraps `python3 -m venv ...` so it creates the requested
 environment through `virtualenv` instead.
+
+### Go components
+
+The `tools-go-1-23` and `tools-go-1-24` components provide Go toolchains from
+Ubuntu packages for Codex shell tasks. Each component exposes versioned commands
+such as `go1.23`, `gofmt1.23`, `go1.24`, and `gofmt1.24`.
+
+If more than one Go component is installed, the unversioned `go` and `gofmt`
+commands resolve to the newest installed component supported by the wrapper.
+Versioned commands remain available for projects that need a specific toolchain.
+
+The Go wrappers set `GOROOT` to the component-local Go tree. The Codex wrapper
+also sets writable defaults for Go state when a Go component is installed:
+
+```
+GOPATH=$HOME/snap/codex/common/go
+GOCACHE=$HOME/snap/codex/common/.cache/go-build
+GOENV=$HOME/snap/codex/common/go/env
+```
+
+These defaults avoid writing Go caches into revision-specific snap directories.
+
+### Native build component
+
+The `tools-native-build` component provides common native build tools such as
+GCC, make, libc headers, binutils, and pkg-config. It is useful for projects that
+compile C or C++ code directly, and for Go projects that use CGO.
+
+When installed, the Codex wrapper adds the component's compiler, library,
+include, and pkg-config paths to the environment. Installing `tools-native-build`
+alongside a Go component enables normal libc-based CGO builds. Projects that
+depend on additional native libraries still need those libraries and development
+headers to be packaged in Codex or another component.
 
 ### Configuration
 

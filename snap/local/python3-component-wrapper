@@ -1,0 +1,11 @@
+#!/bin/sh
+set -eu
+
+real_python="${0%/*}/python3.real"
+
+if [ "${1:-}" = "-m" ] && [ "${2:-}" = "venv" ]; then
+    shift 2
+    exec "$real_python" -m virtualenv "$@"
+fi
+
+exec "$real_python" "$@"

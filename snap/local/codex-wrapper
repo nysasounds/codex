@@ -5,6 +5,10 @@ snap_mount_root="${SNAP%/*}"
 components_root="$snap_mount_root/components/$SNAP_REVISION"
 base_path="$PATH"
 base_ld_library_path="${LD_LIBRARY_PATH:-}"
+base_cpath="${CPATH:-}"
+base_library_path="${LIBRARY_PATH:-}"
+base_pkg_config_path="${PKG_CONFIG_PATH:-}"
+tool_components="tools-native-build tools-python-3-12 tools-go-1-23 tools-go-1-24"
 
 component_path() {
     component_root="$1"
@@ -15,6 +19,18 @@ component_ld_library_path() {
     component_root="$1"
     printf '%s/usr/lib:%s/usr/lib/x86_64-linux-gnu:%s/usr/lib/aarch64-linux-gnu:%s/lib:%s/lib/x86_64-linux-gnu:%s/lib/aarch64-linux-gnu' \
         "$component_root" "$component_root" "$component_root" "$component_root" "$component_root" "$component_root"
+}
+
+component_cpath() {
+    component_root="$1"
+    printf '%s/usr/include:%s/usr/include/x86_64-linux-gnu:%s/usr/include/aarch64-linux-gnu' \
+        "$component_root" "$component_root" "$component_root"
+}
+
+component_pkg_config_path() {
+    component_root="$1"
+    printf '%s/usr/lib/pkgconfig:%s/usr/lib/x86_64-linux-gnu/pkgconfig:%s/usr/lib/aarch64-linux-gnu/pkgconfig:%s/usr/share/pkgconfig' \
+        "$component_root" "$component_root" "$component_root" "$component_root"
 }
 
 run_python_component_smoke_test() {
@@ -44,23 +60,98 @@ run_python_component_smoke_test() {
     fi
 }
 
-for component in tools-python-3-12; do
+run_go_component_smoke_test() {
+    component="$1"
+    component_root="$2"
+    go_bin="$component_root/bin/go"
+
+    if [ ! -x "$go_bin" ]; then
+        printf '%s_smoke_test=missing-go\n' "$component"
+        return 0
+    fi
+
+    test_path="$(component_path "$component_root"):$base_path"
+    test_ld_library_path="$(component_ld_library_path "$component_root"):$base_ld_library_path"
+
+    if output="$(PATH="$test_path" LD_LIBRARY_PATH="$test_ld_library_path" \
+        GOPATH="${GOPATH:-${SNAP_USER_COMMON:-${CODEX_HOME:-/tmp}}/go}" \
+        GOCACHE="${GOCACHE:-${SNAP_USER_COMMON:-${CODEX_HOME:-/tmp}}/.cache/go-build}" \
+        GOENV="${GOENV:-${SNAP_USER_COMMON:-${CODEX_HOME:-/tmp}}/go/env}" \
+        "$go_bin" version 2>&1)"; then
+        printf '%s_smoke_test=pass\n' "$component"
+        printf '%s_version=%s\n' "$component" "$output"
+    else
+        status="$?"
+        printf '%s_smoke_test=fail exit=%s\n' "$component" "$status"
+        printf '%s_smoke_test_output<<EOF\n%s\nEOF\n' "$component" "$output"
+    fi
+}
+
+run_native_build_component_smoke_test() {
+    component="$1"
+    component_root="$2"
+    test_path="$(component_path "$component_root"):$base_path"
+    test_ld_library_path="$(component_ld_library_path "$component_root"):$base_ld_library_path"
+    test_cpath="$(component_cpath "$component_root"):$base_cpath"
+    test_library_path="$(component_ld_library_path "$component_root"):$base_library_path"
+    test_pkg_config_path="$(component_pkg_config_path "$component_root"):$base_pkg_config_path"
+
+    if output="$(PATH="$test_path" LD_LIBRARY_PATH="$test_ld_library_path" CPATH="$test_cpath" \
+        LIBRARY_PATH="$test_library_path" PKG_CONFIG_PATH="$test_pkg_config_path" \
+        sh -c 'command -v gcc >/dev/null && command -v make >/dev/null && command -v pkg-config >/dev/null && gcc --version | sed -n 1p' 2>&1)"; then
+        printf '%s_smoke_test=pass\n' "$component"
+        printf '%s_gcc_version=%s\n' "$component" "$output"
+    else
+        status="$?"
+        printf '%s_smoke_test=fail exit=%s\n' "$component" "$status"
+        printf '%s_smoke_test_output<<EOF\n%s\nEOF\n' "$component" "$output"
+    fi
+}
+
+run_component_smoke_test() {
+    component="$1"
+    component_root="$2"
+
+    case "$component" in
+        tools-python-*) run_python_component_smoke_test "$component" "$component_root" ;;
+        tools-go-*) run_go_component_smoke_test "$component" "$component_root" ;;
+        tools-native-build) run_native_build_component_smoke_test "$component" "$component_root" ;;
+    esac
+}
+
+for component in $tool_components; do
     component_root="$components_root/$component"
     if [ -d "$component_root" ]; then
         PATH="$(component_path "$component_root"):$PATH"
         LD_LIBRARY_PATH="$(component_ld_library_path "$component_root"):${LD_LIBRARY_PATH:-}"
+        CPATH="$(component_cpath "$component_root"):${CPATH:-}"
+        LIBRARY_PATH="$(component_ld_library_path "$component_root"):${LIBRARY_PATH:-}"
+        PKG_CONFIG_PATH="$(component_pkg_config_path "$component_root"):${PKG_CONFIG_PATH:-}"
     fi
 done
 
-export PATH LD_LIBRARY_PATH
+if command -v go >/dev/null 2>&1; then
+    go_state_root="${SNAP_USER_COMMON:-${CODEX_HOME:-$HOME/snap/codex/common}}"
+    GOPATH="${GOPATH:-$go_state_root/go}"
+    GOCACHE="${GOCACHE:-$go_state_root/.cache/go-build}"
+    GOENV="${GOENV:-$go_state_root/go/env}"
+fi
+
+export PATH LD_LIBRARY_PATH CPATH LIBRARY_PATH PKG_CONFIG_PATH GOPATH GOCACHE GOENV
 
 if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
     printf 'components_root=%s\n' "$components_root"
     printf 'CODEX_HOME=%s\n' "${CODEX_HOME:-}"
     printf 'PATH=%s\n' "$PATH"
     printf 'LD_LIBRARY_PATH=%s\n' "${LD_LIBRARY_PATH:-}"
+    printf 'CPATH=%s\n' "${CPATH:-}"
+    printf 'LIBRARY_PATH=%s\n' "${LIBRARY_PATH:-}"
+    printf 'PKG_CONFIG_PATH=%s\n' "${PKG_CONFIG_PATH:-}"
+    printf 'GOPATH=%s\n' "${GOPATH:-}"
+    printf 'GOCACHE=%s\n' "${GOCACHE:-}"
+    printf 'GOENV=%s\n' "${GOENV:-}"
 
-    for component in tools-python-3-12; do
+    for component in $tool_components; do
         component_root="$components_root/$component"
         if [ -d "$component_root" ]; then
             printf '%s=installed\n' "$component"
@@ -70,10 +161,10 @@ if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
     done
 
     printf '\n[component smoke tests]\n'
-    for component in tools-python-3-12; do
+    for component in $tool_components; do
         component_root="$components_root/$component"
         if [ -d "$component_root" ]; then
-            run_python_component_smoke_test "$component" "$component_root"
+            run_component_smoke_test "$component" "$component_root"
         fi
     done
 
@@ -102,6 +193,32 @@ if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
         fi
     else
         printf 'pip3=missing\n'
+    fi
+
+    if command -v go >/dev/null 2>&1; then
+        printf 'go=%s\n' "$(command -v go)"
+        if output="$(go version 2>&1)"; then
+            printf 'go_version=%s\n' "$output"
+        else
+            status="$?"
+            printf 'go_version=fail exit=%s\n' "$status"
+            printf 'go_version_output<<EOF\n%s\nEOF\n' "$output"
+        fi
+    else
+        printf 'go=missing\n'
+    fi
+
+    if command -v gcc >/dev/null 2>&1; then
+        printf 'gcc=%s\n' "$(command -v gcc)"
+        if output="$(gcc --version 2>&1 | sed -n '1p')"; then
+            printf 'gcc_version=%s\n' "$output"
+        else
+            status="$?"
+            printf 'gcc_version=fail exit=%s\n' "$status"
+            printf 'gcc_version_output<<EOF\n%s\nEOF\n' "$output"
+        fi
+    else
+        printf 'gcc=missing\n'
     fi
 
     exit 0
