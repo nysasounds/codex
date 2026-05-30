@@ -100,6 +100,10 @@ parts:
   launcher:
     plugin: dump
     source: snap/local
+    override-build: |
+      craftctl default
+      chmod 755 "${CRAFT_PART_BUILD}/codex-wrapper"
+      chmod 755 "${CRAFT_PART_BUILD}/migrate-codex-home"
     organize:
       codex-wrapper: bin/codex-wrapper
       migrate-codex-home: bin/migrate-codex-home
