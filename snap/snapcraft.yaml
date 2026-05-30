@@ -14,6 +14,43 @@ source-code: https://github.com/nysasounds/codex
 issues: https://github.com/nysasounds/codex/issues
 license: Apache-2.0
 
+components:
+  tools-python-3-12:
+    type: standard
+    summary: Optional Python 3.12 development tools
+    description: Python 3.12 runtime from Ubuntu 24.04 LTS plus Python tooling for Codex shell tasks
+    version: "3.12-ubuntu-24.04-lts"
+
+  tools-go-1-23:
+    type: standard
+    summary: Optional Go 1.23 development tools
+    description: Go 1.23 toolchain from Ubuntu 24.04 LTS for Codex shell tasks
+    version: "1.23-ubuntu-24.04-lts"
+
+  tools-go-1-24:
+    type: standard
+    summary: Optional Go 1.24 development tools
+    description: Go 1.24 toolchain from Ubuntu 24.04 LTS for Codex shell tasks
+    version: "1.24-ubuntu-24.04-lts"
+
+  tools-rust-1-80:
+    type: standard
+    summary: Optional Rust 1.80 development tools
+    description: Rust 1.80 toolchain from Ubuntu 24.04 LTS for Codex shell tasks
+    version: "1.80-ubuntu-24.04-lts"
+
+  tools-rust-1-82:
+    type: standard
+    summary: Optional Rust 1.82 development tools
+    description: Rust 1.82 toolchain from Ubuntu 24.04 LTS for Codex shell tasks
+    version: "1.82-ubuntu-24.04-lts"
+
+  tools-native-build:
+    type: standard
+    summary: Optional native build tools
+    description: GCC, make, libc headers, and pkg-config for native builds and CGO
+    version: "ubuntu-24.04-lts"
+
 parts:
   codex:
     plugin: rust
@@ -44,15 +81,36 @@ parts:
       - CARGO_PROFILE_RELEASE_DEBUG: "0"
     override-build: |
       craftctl default
+
+      # Move main binary to expected location #
+      install -d "${CRAFT_PART_INSTALL}/bin"
+      mv "${CRAFT_PART_INSTALL}/codex" "${CRAFT_PART_INSTALL}/bin/codex"
+      chmod 755 "${CRAFT_PART_INSTALL}/bin/codex"
+
+      # Add argv0 helpers #
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/apply_patch"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/applypatch"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/codex-linux-sandbox"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/codex-execve-wrapper"
+
       # Include the current license info #
       install -d "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}"
       install "${CRAFT_PART_SRC}/LICENSE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
       install "${CRAFT_PART_SRC}/NOTICE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
+  launcher:
+    plugin: dump
+    source: snap/local
+    override-build: |
+      craftctl default
+      chmod 755 "${CRAFT_PART_BUILD}/codex-wrapper"
+      chmod 755 "${CRAFT_PART_BUILD}/migrate-codex-home"
     organize:
-      codex: bin/codex
+      codex-wrapper: bin/codex-wrapper
+      migrate-codex-home: bin/migrate-codex-home
   # As this is a sctricly confined snap - include some commonly used utils #
   utils:
     plugin: nil
+    source: snap/local
     stage-packages:
       - coreutils
       - curl
@@ -76,8 +134,250 @@ parts:
       - tree
       - unzip
       - wget
-      - yq
       - zip
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      install -d "${CRAFT_PART_INSTALL}/libexec/python-utils/scripts"
+      if [ -e "${CRAFT_PART_INSTALL}/usr/bin/rrsync" ]; then
+        mv "${CRAFT_PART_INSTALL}/usr/bin/rrsync" "${CRAFT_PART_INSTALL}/libexec/python-utils/scripts/rrsync"
+        sed -i "s#^RSYNC = '/usr/bin/rsync'#import os\\nRSYNC = os.environ.get('RRSYNC_RSYNC', '/usr/bin/rsync')#" \
+          "${CRAFT_PART_INSTALL}/libexec/python-utils/scripts/rrsync"
+        install -m 755 "${CRAFT_PART_SRC}/python-utility-wrapper" "${CRAFT_PART_INSTALL}/usr/bin/rrsync"
+      fi
+
+  utils-python:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - python3
+      - python3-pkg-resources
+      - yq
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/libexec/python-utils"
+      install -d "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name libexec \
+        -exec mv {} "${root}/" \;
+
+      install -d "${CRAFT_PART_INSTALL}/usr/bin"
+      for tool in \
+        activate-global-python-argcomplete \
+        python-argcomplete-check-easy-install-script \
+        register-python-argcomplete \
+        tomlq \
+        xq-python \
+        yq; do
+        if [ -e "${root}/usr/bin/${tool}" ]; then
+          install -m 755 "${CRAFT_PART_SRC}/python-utility-wrapper" "${CRAFT_PART_INSTALL}/usr/bin/${tool}"
+        fi
+      done
+
+  tools-python-3-12:
+    plugin: python
+    source: snap/local
+    stage-packages:
+      - python3
+    python-packages:
+      - pip
+      - setuptools
+      - virtualenv
+      - wheel
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      if [ -e "${root}/bin/python3" ]; then
+        mv "${root}/bin/python3" "${root}/bin/python3.real"
+        install -m 755 "${CRAFT_PART_SRC}/python3-component-wrapper" "${root}/bin/python3"
+      fi
+    organize:
+      payload: (component/tools-python-3-12)/
+
+  tools-go-1-23:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - golang-1.23-go
+      - golang-1.23-src
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      install -d "${root}/bin" "${root}/meta"
+      printf '1.23\n' > "${root}/meta/go-version"
+
+      for tool in go go1.23 gofmt gofmt1.23; do
+        install -m 755 "${CRAFT_PART_SRC}/go-component-wrapper" "${root}/bin/${tool}"
+      done
+    organize:
+      payload: (component/tools-go-1-23)/
+
+  tools-go-1-24:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - golang-1.24-go
+      - golang-1.24-src
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      install -d "${root}/bin" "${root}/meta"
+      printf '1.24\n' > "${root}/meta/go-version"
+
+      for tool in go go1.24 gofmt gofmt1.24; do
+        install -m 755 "${CRAFT_PART_SRC}/go-component-wrapper" "${root}/bin/${tool}"
+      done
+    organize:
+      payload: (component/tools-go-1-24)/
+
+  tools-rust-1-80:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - cargo-1.80
+      - libstd-rust-1.80-dev
+      - rust-1.80-clippy
+      - rust-1.80-src
+      - rustc-1.80
+      - rustfmt-1.80
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      install -d "${root}/bin" "${root}/meta"
+      printf '1.80\n' > "${root}/meta/rust-version"
+
+      for tool in \
+        cargo cargo1.80 \
+        rustc rustc1.80 \
+        rustdoc rustdoc1.80 \
+        rustfmt rustfmt1.80 \
+        cargo-fmt cargo-fmt1.80 \
+        cargo-clippy cargo-clippy1.80 \
+        clippy-driver clippy-driver1.80; do
+        install -m 755 "${CRAFT_PART_SRC}/rust-component-wrapper" "${root}/bin/${tool}"
+      done
+    organize:
+      payload: (component/tools-rust-1-80)/
+
+  tools-rust-1-82:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - cargo-1.82
+      - libstd-rust-1.82-dev
+      - rust-1.82-clippy
+      - rust-1.82-src
+      - rustc-1.82
+      - rustfmt-1.82
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      install -d "${root}/bin" "${root}/meta"
+      printf '1.82\n' > "${root}/meta/rust-version"
+
+      for tool in \
+        cargo cargo1.82 \
+        rustc rustc1.82 \
+        rustdoc rustdoc1.82 \
+        rustfmt rustfmt1.82 \
+        cargo-fmt cargo-fmt1.82 \
+        cargo-clippy cargo-clippy1.82 \
+        clippy-driver clippy-driver1.82; do
+        install -m 755 "${CRAFT_PART_SRC}/rust-component-wrapper" "${root}/bin/${tool}"
+      done
+    organize:
+      payload: (component/tools-rust-1-82)/
+
+  tools-native-build:
+    plugin: nil
+    source: snap/local
+    stage-packages:
+      - binutils
+      - build-essential
+      - libc6
+      - libc6-dev
+      - libgcc-s1
+      - libstdc++6
+      - make
+      - pkg-config
+    override-build: |
+      set -eux
+
+      craftctl default
+
+      root="${CRAFT_PART_INSTALL}/payload"
+      mkdir -p "${root}"
+
+      find "${CRAFT_PART_INSTALL}" -mindepth 1 -maxdepth 1 ! -name payload \
+        -exec mv {} "${root}/" \;
+
+      install -d "${root}/lib" "${root}/lib64"
+      if [ -d "${root}/usr/lib/x86_64-linux-gnu" ]; then
+        ln -s ../usr/lib/x86_64-linux-gnu "${root}/lib/x86_64-linux-gnu"
+      fi
+      if [ -d "${root}/usr/lib/aarch64-linux-gnu" ]; then
+        ln -s ../usr/lib/aarch64-linux-gnu "${root}/lib/aarch64-linux-gnu"
+      fi
+      if [ -e "${root}/usr/lib64/ld-linux-x86-64.so.2" ]; then
+        ln -s ../usr/lib64/ld-linux-x86-64.so.2 "${root}/lib64/ld-linux-x86-64.so.2"
+      fi
+
+      install -d "${root}/bin"
+      for tool in cc c++ gcc g++; do
+        install -m 755 "${CRAFT_PART_SRC}/native-build-tool-wrapper" "${root}/bin/${tool}"
+      done
+      for tool_path in "${root}"/usr/bin/gcc-* "${root}"/usr/bin/g++-*; do
+        if [ -e "${tool_path}" ]; then
+          install -m 755 "${CRAFT_PART_SRC}/native-build-tool-wrapper" "${root}/bin/${tool_path##*/}"
+        fi
+      done
+    organize:
+      payload: (component/tools-native-build)/
 
   completer:
     plugin: nil
@@ -89,10 +389,10 @@ parts:
 
 apps:
   codex:
-    command: bin/codex
+    command: bin/codex-wrapper
     completer: usr/share/bash-completion/codex
     environment:
-      CODEX_HOME: $SNAP_USER_DATA
+      CODEX_HOME: $SNAP_USER_COMMON
     plugs:
       - network
       - network-bind
