@@ -26,16 +26,20 @@ jobs:
         # https://github.com/snapcore/action-build/releases
         uses: snapcore/action-build@v1.3.0
         with:
-          snapcraft-args: pack --output codex.snap
+          snapcraft-args: --verbosity=debug
 
       - run: echo "🍏 Job status ${{ job.status }}"
+
+      - run: |
+          mkdir .dist
+          mv -v *.snap *.comp .dist/
 
       - name: Upload
         if: github.repository == 'nysasounds/codex'
         uses: actions/upload-artifact@v7
         with:
-          name: codex.snap
-          path: codex.snap
+          name: snap
+          path: .dist
 
       - run: echo "🍏 Job status ${{ job.status }}"
 
@@ -48,14 +52,18 @@ jobs:
       - name: Download
         uses: actions/download-artifact@v8
         with:
-          name: codex.snap
+          name: snap
+          path: .dist
 
       - run: echo "🍏 Job status ${{ job.status }}"
 
       - name: Install
         run: |
           # Install #
-          sudo snap install --dangerous ./codex.snap
+          sudo snap install --dangerous .dist/*.snap .dist/*.comp
+
+          # List components #
+          sudo snap components codex
 
           # Connections #
           sudo snap connect codex:desktop :desktop
