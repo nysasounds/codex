@@ -1,297 +1,37 @@
 #!/bin/sh
 set -eu
 
-snap_mount_root="${SNAP%/*}"
-components_root="$snap_mount_root/components/$SNAP_REVISION"
-base_path="$PATH"
-base_ld_library_path="${LD_LIBRARY_PATH:-}"
-base_cpath="${CPATH:-}"
-base_library_path="${LIBRARY_PATH:-}"
-base_pkg_config_path="${PKG_CONFIG_PATH:-}"
-tool_components="tools-python-3-12 tools-go-1-23 tools-go-1-24 tools-rust-1-80 tools-rust-1-82 tools-native-build"
+PATH="$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:$PATH"
+export PATH
 
-component_path() {
-    component_root="$1"
-    printf '%s/bin:%s/usr/bin' "$component_root" "$component_root"
-}
-
-component_ld_library_path() {
-    component_root="$1"
-    printf '%s/usr/lib:%s/usr/lib/x86_64-linux-gnu:%s/usr/lib/aarch64-linux-gnu:%s/lib:%s/lib/x86_64-linux-gnu:%s/lib/aarch64-linux-gnu' \
-        "$component_root" "$component_root" "$component_root" "$component_root" "$component_root" "$component_root"
-}
-
-component_cpath() {
-    component_root="$1"
-    printf '%s/usr/include:%s/usr/include/x86_64-linux-gnu:%s/usr/include/aarch64-linux-gnu' \
-        "$component_root" "$component_root" "$component_root"
-}
-
-component_pkg_config_path() {
-    component_root="$1"
-    printf '%s/usr/lib/pkgconfig:%s/usr/lib/x86_64-linux-gnu/pkgconfig:%s/usr/lib/aarch64-linux-gnu/pkgconfig:%s/usr/share/pkgconfig' \
-        "$component_root" "$component_root" "$component_root" "$component_root"
-}
-
-run_python_component_smoke_test() {
-    component="$1"
-    component_root="$2"
-    python_bin="$component_root/bin/python3"
-
-    if [ ! -x "$python_bin" ]; then
-        python_bin="$component_root/usr/bin/python3"
-    fi
-
-    if [ ! -x "$python_bin" ]; then
-        printf '%s_smoke_test=missing-python3\n' "$component"
-        return 0
-    fi
-
-    test_path="$(component_path "$component_root"):$base_path"
-    test_ld_library_path="$(component_ld_library_path "$component_root"):$base_ld_library_path"
-
-    if output="$(PATH="$test_path" LD_LIBRARY_PATH="$test_ld_library_path" \
-        "$python_bin" -c 'import pip, ssl, sqlite3, venv, virtualenv, zlib' 2>&1)"; then
-        printf '%s_smoke_test=pass\n' "$component"
+print_tool() {
+    tool="$1"
+    if command -v "$tool" >/dev/null 2>&1; then
+        printf '%s=%s\n' "$tool" "$(command -v "$tool")"
+        case "$tool" in
+            bwrap|python3|pip3|rustc|cargo|rustfmt|gcc) version_cmd='--version' ;;
+            go) version_cmd='version' ;;
+            *) version_cmd='--version' ;;
+        esac
+        if output="$($tool $version_cmd 2>&1 | sed -n '1p')"; then
+            printf '%s_version=%s\n' "$tool" "$output"
+        else
+            status="$?"
+            printf '%s_version=fail exit=%s\n' "$tool" "$status"
+            printf '%s_version_output<<EOF\n%s\nEOF\n' "$tool" "$output"
+        fi
     else
-        status="$?"
-        printf '%s_smoke_test=fail exit=%s\n' "$component" "$status"
-        printf '%s_smoke_test_output<<EOF\n%s\nEOF\n' "$component" "$output"
+        printf '%s=missing\n' "$tool"
     fi
 }
-
-run_go_component_smoke_test() {
-    component="$1"
-    component_root="$2"
-    go_bin="$component_root/bin/go"
-
-    if [ ! -x "$go_bin" ]; then
-        printf '%s_smoke_test=missing-go\n' "$component"
-        return 0
-    fi
-
-    test_path="$(component_path "$component_root"):$base_path"
-    test_ld_library_path="$(component_ld_library_path "$component_root"):$base_ld_library_path"
-
-    if output="$(PATH="$test_path" LD_LIBRARY_PATH="$test_ld_library_path" \
-        GOPATH="${GOPATH:-${SNAP_USER_COMMON:-${CODEX_HOME:-/tmp}}/go}" \
-        GOCACHE="${GOCACHE:-${SNAP_USER_COMMON:-${CODEX_HOME:-/tmp}}/.cache/go-build}" \
-        GOENV="${GOENV:-${SNAP_USER_COMMON:-${CODEX_HOME:-/tmp}}/go/env}" \
-        "$go_bin" version 2>&1)"; then
-        printf '%s_smoke_test=pass\n' "$component"
-        printf '%s_version=%s\n' "$component" "$output"
-    else
-        status="$?"
-        printf '%s_smoke_test=fail exit=%s\n' "$component" "$status"
-        printf '%s_smoke_test_output<<EOF\n%s\nEOF\n' "$component" "$output"
-    fi
-}
-
-run_native_build_component_smoke_test() {
-    component="$1"
-    component_root="$2"
-    test_path="$(component_path "$component_root"):$base_path"
-    test_ld_library_path="$(component_ld_library_path "$component_root"):$base_ld_library_path"
-    test_cpath="$(component_cpath "$component_root"):$base_cpath"
-    test_library_path="$(component_ld_library_path "$component_root"):$base_library_path"
-    test_pkg_config_path="$(component_pkg_config_path "$component_root"):$base_pkg_config_path"
-
-    if output="$(PATH="$test_path" LD_LIBRARY_PATH="$test_ld_library_path" CPATH="$test_cpath" \
-        LIBRARY_PATH="$test_library_path" PKG_CONFIG_PATH="$test_pkg_config_path" \
-        sh -c 'command -v gcc >/dev/null && command -v make >/dev/null && command -v pkg-config >/dev/null && gcc --version | sed -n 1p' 2>&1)"; then
-        printf '%s_smoke_test=pass\n' "$component"
-        printf '%s_gcc_version=%s\n' "$component" "$output"
-    else
-        status="$?"
-        printf '%s_smoke_test=fail exit=%s\n' "$component" "$status"
-        printf '%s_smoke_test_output<<EOF\n%s\nEOF\n' "$component" "$output"
-    fi
-}
-
-run_rust_component_smoke_test() {
-    component="$1"
-    component_root="$2"
-    rustc_bin="$component_root/bin/rustc"
-
-    if [ ! -x "$rustc_bin" ]; then
-        printf '%s_smoke_test=missing-rustc\n' "$component"
-        return 0
-    fi
-
-    test_path="$(component_path "$component_root"):$base_path"
-    test_ld_library_path="$(component_ld_library_path "$component_root"):$base_ld_library_path"
-    test_cargo_home="${CARGO_HOME:-${SNAP_USER_COMMON:-${CODEX_HOME:-/tmp}}/cargo}"
-
-    if output="$(PATH="$test_path" LD_LIBRARY_PATH="$test_ld_library_path" CARGO_HOME="$test_cargo_home" \
-        sh -c 'rustc --version && cargo --version && rustfmt --version && cargo clippy --version' 2>&1)"; then
-        printf '%s_smoke_test=pass\n' "$component"
-        printf '%s_versions<<EOF\n%s\nEOF\n' "$component" "$output"
-    else
-        status="$?"
-        printf '%s_smoke_test=fail exit=%s\n' "$component" "$status"
-        printf '%s_smoke_test_output<<EOF\n%s\nEOF\n' "$component" "$output"
-    fi
-}
-
-run_component_smoke_test() {
-    component="$1"
-    component_root="$2"
-
-    case "$component" in
-        tools-python-*) run_python_component_smoke_test "$component" "$component_root" ;;
-        tools-go-*) run_go_component_smoke_test "$component" "$component_root" ;;
-        tools-rust-*) run_rust_component_smoke_test "$component" "$component_root" ;;
-        tools-native-build) run_native_build_component_smoke_test "$component" "$component_root" ;;
-    esac
-}
-
-for component in $tool_components; do
-    component_root="$components_root/$component"
-    if [ -d "$component_root" ]; then
-        PATH="$(component_path "$component_root"):$PATH"
-        LD_LIBRARY_PATH="$(component_ld_library_path "$component_root"):${LD_LIBRARY_PATH:-}"
-        CPATH="$(component_cpath "$component_root"):${CPATH:-}"
-        LIBRARY_PATH="$(component_ld_library_path "$component_root"):${LIBRARY_PATH:-}"
-        PKG_CONFIG_PATH="$(component_pkg_config_path "$component_root"):${PKG_CONFIG_PATH:-}"
-    fi
-done
-
-if command -v go >/dev/null 2>&1; then
-    go_state_root="${SNAP_USER_COMMON:-${CODEX_HOME:-$HOME/snap/codex/common}}"
-    GOPATH="${GOPATH:-$go_state_root/go}"
-    GOCACHE="${GOCACHE:-$go_state_root/.cache/go-build}"
-    GOENV="${GOENV:-$go_state_root/go/env}"
-fi
-
-if command -v cargo >/dev/null 2>&1 || command -v rustc >/dev/null 2>&1; then
-    rust_state_root="${SNAP_USER_COMMON:-${CODEX_HOME:-$HOME/snap/codex/common}}"
-    CARGO_HOME="${CARGO_HOME:-$rust_state_root/cargo}"
-fi
-
-export PATH LD_LIBRARY_PATH CPATH LIBRARY_PATH PKG_CONFIG_PATH GOPATH GOCACHE GOENV CARGO_HOME
 
 if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
-    printf 'components_root=%s\n' "$components_root"
     printf 'CODEX_HOME=%s\n' "${CODEX_HOME:-}"
     printf 'PATH=%s\n' "$PATH"
-    printf 'LD_LIBRARY_PATH=%s\n' "${LD_LIBRARY_PATH:-}"
-    printf 'CPATH=%s\n' "${CPATH:-}"
-    printf 'LIBRARY_PATH=%s\n' "${LIBRARY_PATH:-}"
-    printf 'PKG_CONFIG_PATH=%s\n' "${PKG_CONFIG_PATH:-}"
-    printf 'GOPATH=%s\n' "${GOPATH:-}"
-    printf 'GOCACHE=%s\n' "${GOCACHE:-}"
-    printf 'GOENV=%s\n' "${GOENV:-}"
-    printf 'CARGO_HOME=%s\n' "${CARGO_HOME:-}"
-
-    for component in $tool_components; do
-        component_root="$components_root/$component"
-        if [ -d "$component_root" ]; then
-            printf '%s=installed\n' "$component"
-        else
-            printf '%s=missing\n' "$component"
-        fi
-    done
-
-    printf '\n[component smoke tests]\n'
-    for component in $tool_components; do
-        component_root="$components_root/$component"
-        if [ -d "$component_root" ]; then
-            run_component_smoke_test "$component" "$component_root"
-        fi
-    done
-
     printf '\n[selected tools]\n'
-    if command -v python3 >/dev/null 2>&1; then
-        printf 'python3=%s\n' "$(command -v python3)"
-        if output="$(python3 --version 2>&1)"; then
-            printf 'python3_version=%s\n' "$output"
-        else
-            status="$?"
-            printf 'python3_version=fail exit=%s\n' "$status"
-            printf 'python3_version_output<<EOF\n%s\nEOF\n' "$output"
-        fi
-    else
-        printf 'python3=missing\n'
-    fi
-
-    if command -v pip3 >/dev/null 2>&1; then
-        printf 'pip3=%s\n' "$(command -v pip3)"
-        if output="$(pip3 --version 2>&1)"; then
-            printf 'pip3_version=%s\n' "$output"
-        else
-            status="$?"
-            printf 'pip3_version=fail exit=%s\n' "$status"
-            printf 'pip3_version_output<<EOF\n%s\nEOF\n' "$output"
-        fi
-    else
-        printf 'pip3=missing\n'
-    fi
-
-    if command -v go >/dev/null 2>&1; then
-        printf 'go=%s\n' "$(command -v go)"
-        if output="$(go version 2>&1)"; then
-            printf 'go_version=%s\n' "$output"
-        else
-            status="$?"
-            printf 'go_version=fail exit=%s\n' "$status"
-            printf 'go_version_output<<EOF\n%s\nEOF\n' "$output"
-        fi
-    else
-        printf 'go=missing\n'
-    fi
-
-    if command -v rustc >/dev/null 2>&1; then
-        printf 'rustc=%s\n' "$(command -v rustc)"
-        if output="$(rustc --version 2>&1)"; then
-            printf 'rustc_version=%s\n' "$output"
-        else
-            status="$?"
-            printf 'rustc_version=fail exit=%s\n' "$status"
-            printf 'rustc_version_output<<EOF\n%s\nEOF\n' "$output"
-        fi
-    else
-        printf 'rustc=missing\n'
-    fi
-
-    if command -v cargo >/dev/null 2>&1; then
-        printf 'cargo=%s\n' "$(command -v cargo)"
-        if output="$(cargo --version 2>&1)"; then
-            printf 'cargo_version=%s\n' "$output"
-        else
-            status="$?"
-            printf 'cargo_version=fail exit=%s\n' "$status"
-            printf 'cargo_version_output<<EOF\n%s\nEOF\n' "$output"
-        fi
-    else
-        printf 'cargo=missing\n'
-    fi
-
-    if command -v rustfmt >/dev/null 2>&1; then
-        printf 'rustfmt=%s\n' "$(command -v rustfmt)"
-        if output="$(rustfmt --version 2>&1)"; then
-            printf 'rustfmt_version=%s\n' "$output"
-        else
-            status="$?"
-            printf 'rustfmt_version=fail exit=%s\n' "$status"
-            printf 'rustfmt_version_output<<EOF\n%s\nEOF\n' "$output"
-        fi
-    else
-        printf 'rustfmt=missing\n'
-    fi
-
-    if command -v gcc >/dev/null 2>&1; then
-        printf 'gcc=%s\n' "$(command -v gcc)"
-        if output="$(gcc --version 2>&1 | sed -n '1p')"; then
-            printf 'gcc_version=%s\n' "$output"
-        else
-            status="$?"
-            printf 'gcc_version=fail exit=%s\n' "$status"
-            printf 'gcc_version_output<<EOF\n%s\nEOF\n' "$output"
-        fi
-    else
-        printf 'gcc=missing\n'
-    fi
-
+    for tool in bwrap python3 pip3 go rustc cargo rustfmt gcc; do
+        print_tool "$tool"
+    done
     exit 0
 fi
 
