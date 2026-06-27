@@ -32,7 +32,8 @@ jobs:
 
       - run: |
           mkdir .dist
-          mv -v *.snap *.comp .dist/
+          #mv -v *.snap *.comp .dist/
+          mv -v *.snap .dist/
 
       - name: Upload
         if: github.repository == 'nysasounds/codex'
@@ -60,16 +61,11 @@ jobs:
       - name: Install
         run: |
           # Install #
-          sudo snap install --dangerous .dist/*.snap .dist/*.comp
+          #sudo snap install --dangerous .dist/*.snap .dist/*.comp
+          sudo snap install --dangerous ---classic .dist/*.snap
 
-          # List components #
-          sudo snap components codex
-
-          # Connections #
-          sudo snap connect codex:desktop :desktop
-          sudo snap connect codex:home :home
-          sudo snap connect codex:network :network
-          sudo snap connect codex:network-bind :network-bind
+          ## List components #
+          #sudo snap components codex
 
       - run: echo "🍏 Job status ${{ job.status }}"
 
