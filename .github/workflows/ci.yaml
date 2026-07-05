@@ -26,7 +26,7 @@ jobs:
         # https://github.com/snapcore/action-build/releases
         uses: snapcore/action-build@v1.3.0
         with:
-          snapcraft-args: pack --output codex.snap
+          snapcraft-args: pack --verbosity=debug --output codex.snap
 
       - run: echo "🍏 Job status ${{ job.status }}"
 
