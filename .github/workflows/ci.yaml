@@ -20,7 +20,7 @@ jobs:
       - run: echo "🔎 Running on repo ${{ github.repository }} from ${{ github.ref }}"
 
       - name: Check Out
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Build
         # https://github.com/snapcore/action-build/releases
