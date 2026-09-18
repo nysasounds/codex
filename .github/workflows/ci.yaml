@@ -12,7 +12,7 @@ defaults:
 jobs:
   snap:
     name: Snap
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
 
       - run: echo "🎉 Event triggered by ${{ github.event_name }}"
@@ -41,7 +41,7 @@ jobs:
 
   test:
     name: Test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     needs: snap
     steps:
 
