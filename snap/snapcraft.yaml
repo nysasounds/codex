@@ -30,19 +30,31 @@ parts:
     rust-use-global-lto: false
     rust-cargo-parameters:
       - "--bin codex"
+      - "--bin codex-code-mode-host"
     build-packages:
       - lld
       - pkg-config
       - libssl-dev
       - libclang-dev
       - libcap-dev
+      - clang-20
+      - libclang-20-dev
     stage-packages:
       - xdg-utils
     build-environment:
       - RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
       - CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "1"
       - CARGO_PROFILE_RELEASE_DEBUG: "0"
+      - V8_FROM_SOURCE: "1"
+      - LIBCLANG_PATH: "/usr/lib/llvm-20/lib"
+      - GN_ARGS: "use_glib=false"
     override-build: |
+      version="$(python3 "${CRAFT_PART_SRC}/.github/scripts/rusty_v8_bazel.py" resolved-v8-crate-version)"
+      v8_dir="${CRAFT_PART_BUILD}/rusty_v8"
+      rm -rf "${v8_dir}"
+      git clone --depth 1 --branch "v${version}" --recurse-submodules --shallow-submodules \
+        https://github.com/denoland/rusty_v8.git "${v8_dir}"
+      printf '\n[patch.crates-io]\nv8 = { path = "%s" }\n' "${v8_dir}" >> "${CRAFT_PART_BUILD}/codex-rs/.cargo/config.toml"
       craftctl default
       # Include the current license info #
       install -d "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}"
@@ -50,6 +62,7 @@ parts:
       install "${CRAFT_PART_SRC}/NOTICE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
     organize:
       codex: bin/codex
+      codex-code-mode-host: bin/codex-code-mode-host
   # As this is a sctricly confined snap - include some commonly used utils #
   utils:
     plugin: nil
