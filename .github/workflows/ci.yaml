@@ -80,5 +80,6 @@ jobs:
           _WARNINGS="$(cat snap.warnings)"
           [ -z "${_WARNINGS}" ] || echo "${_WARNINGS}"
           [ -z "${_WARNINGS}" ] || exit 1
+          test -x /snap/codex/current/bin/codex-code-mode-host
 
       - run: echo "🍏 Job status ${{ job.status }}"
