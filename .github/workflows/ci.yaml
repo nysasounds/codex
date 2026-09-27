@@ -30,12 +30,17 @@ jobs:
 
       - run: echo "🍏 Job status ${{ job.status }}"
 
+      - run: |
+          mkdir .dist
+          #mv -v *.snap *.comp .dist/
+          mv -v *.snap .dist/
+
       - name: Upload
         if: github.repository == 'nysasounds/codex'
         uses: actions/upload-artifact@v7
         with:
-          name: codex.snap
-          path: codex.snap
+          name: snap
+          path: .dist
 
       - run: echo "🍏 Job status ${{ job.status }}"
 
@@ -48,20 +53,19 @@ jobs:
       - name: Download
         uses: actions/download-artifact@v8
         with:
-          name: codex.snap
+          name: snap
+          path: .dist
 
       - run: echo "🍏 Job status ${{ job.status }}"
 
       - name: Install
         run: |
           # Install #
-          sudo snap install --dangerous ./codex.snap
+          #sudo snap install --dangerous .dist/*.snap .dist/*.comp
+          sudo snap install --dangerous ---classic .dist/*.snap
 
-          # Connections #
-          sudo snap connect codex:desktop :desktop
-          sudo snap connect codex:home :home
-          sudo snap connect codex:network :network
-          sudo snap connect codex:network-bind :network-bind
+          ## List components #
+          #sudo snap components codex
 
       - run: echo "🍏 Job status ${{ job.status }}"
 

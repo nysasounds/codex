@@ -6,7 +6,7 @@ description: |
   Codex is OpenAI’s coding agent for software development. ChatGPT Plus,
   Pro, Business, Edu, and Enterprise plans include Codex.
 grade: stable
-confinement: strict
+confinement: classic
 platforms:
   amd64:
   arm64:
@@ -37,6 +37,7 @@ parts:
       - libclang-dev
       - libcap-dev
     stage-packages:
+      - bubblewrap
       - xdg-utils
     build-environment:
       - RUSTFLAGS: "-C link-arg=-fuse-ld=lld"
@@ -44,40 +45,32 @@ parts:
       - CARGO_PROFILE_RELEASE_DEBUG: "0"
     override-build: |
       craftctl default
+
+      # Move main binary to expected location #
+      install -d "${CRAFT_PART_INSTALL}/bin"
+      mv "${CRAFT_PART_INSTALL}/codex" "${CRAFT_PART_INSTALL}/bin/codex"
+      chmod 755 "${CRAFT_PART_INSTALL}/bin/codex"
+
+      # Add argv0 helpers #
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/apply_patch"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/applypatch"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/codex-linux-sandbox"
+      ln -srf "${CRAFT_PART_INSTALL}/bin/codex" "${CRAFT_PART_INSTALL}/bin/codex-execve-wrapper"
+
       # Include the current license info #
       install -d "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}"
       install "${CRAFT_PART_SRC}/LICENSE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
       install "${CRAFT_PART_SRC}/NOTICE" "${CRAFT_PART_INSTALL}/usr/share/doc/${CRAFT_PROJECT_NAME}/"
+  launcher:
+    plugin: dump
+    source: snap/local
+    override-build: |
+      craftctl default
+      chmod 755 "${CRAFT_PART_BUILD}/codex-wrapper"
+      chmod 755 "${CRAFT_PART_BUILD}/migrate-codex-home"
     organize:
-      codex: bin/codex
-  # As this is a sctricly confined snap - include some commonly used utils #
-  utils:
-    plugin: nil
-    stage-packages:
-      - coreutils
-      - curl
-      - diffutils
-      - fd-find
-      - file
-      - gawk
-      - git
-      - gnupg
-      - grep
-      - jq
-      - less
-      - openssh-client
-      - openssl
-      - patch
-      - perl
-      - ripgrep
-      - rsync
-      - sed
-      - tar
-      - tree
-      - unzip
-      - wget
-      - yq
-      - zip
+      codex-wrapper: bin/codex-wrapper
+      migrate-codex-home: bin/migrate-codex-home
 
   completer:
     plugin: nil
@@ -89,12 +82,7 @@ parts:
 
 apps:
   codex:
-    command: bin/codex
+    command: bin/codex-wrapper
     completer: usr/share/bash-completion/codex
     environment:
-      CODEX_HOME: $SNAP_USER_DATA
-    plugs:
-      - network
-      - network-bind
-      - desktop
-      - home
+      CODEX_HOME: $SNAP_USER_COMMON

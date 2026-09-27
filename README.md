@@ -18,15 +18,9 @@ Codex is OpenAI’s coding agent for software development. ChatGPT Plus, Pro, Bu
 
 This is just another installation method for Codex, providing an alternative to documented installation methods such as NPM or Brew.
 
-This is a strictly confined snap, which has the following considerations:
-  - The application has restricted access to system resources, providing an extra layer of security.
-    - System access is controlled by specifically configured interface plugs that are connected to the application.
-    - Codex will have access to files under your HOME directory only, which is then further bound by the Sandboxing Modes you have configured for Codex.
-      - Sandbox Modes do not supersede the strict confinement, rather the confinement acts as an extra security layer over the top.
-  - Any extra utilities or other external dependencies must be included within the snap package, either specifically or by inheritance from the snaps base.
-    - If you find an important dependency is missing, please open an Issue and/or PR so we can it's inclusion can be discussed.
-  - The default configuration location is different
-    - Please see the [below](#Configuration) for details
+This snap uses classic confinement so Codex can behave closer to upstream install methods such as npm or Homebrew. Codex can use the host filesystem and host development tools subject to normal user permissions and Codex's own sandbox settings.
+
+The default configuration location is still snap-managed; see [Configuration](#configuration) for details.
 
 ## Install
 
@@ -37,14 +31,21 @@ This is a strictly confined snap, which has the following considerations:
 Install from the global snap store
 
 ```
-sudo snap install codex
+sudo snap install codex --classic
 ```
 
-### Configuration
+## Configuration
 
-Configuration lives under `$HOME/snap/codex/current`
+Configuration lives under `$HOME/snap/codex/common`.
 
-If you wish to, you could symlink this back to the standard/default location for convenience:
+If you want Codex's standard/default location to point at the snap-managed
+configuration, create this symlink:
 ```
-ln -s "${HOME}/snap/codex/current" "${HOME}/.codex"
+ln -s "${HOME}/snap/codex/common" "${HOME}/.codex"
+```
+
+If you already have `${HOME}/.codex` as a symlink to the old location, `$HOME/snap/codex/current`,
+update it to point at the current snap location instead:
+```
+ln -sfnT "${HOME}/snap/codex/common" "${HOME}/.codex"
 ```
