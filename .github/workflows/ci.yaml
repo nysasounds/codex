@@ -82,3 +82,15 @@ jobs:
           [ -z "${_WARNINGS}" ] || exit 1
 
       - run: echo "🍏 Job status ${{ job.status }}"
+
+      - name: Snap TUI
+        env:
+          TERM: xterm-256color
+        run: |
+          # Make sure the interactive TUI starts and keeps running (timeout exits 124) #
+          _RC=0
+          script -qec "timeout 30 codex" /dev/null >tui.log 2>&1 || _RC=$?
+          [ "${_RC}" -eq 124 ] || cat tui.log
+          [ "${_RC}" -eq 124 ] || exit 1
+
+      - run: echo "🍏 Job status ${{ job.status }}"

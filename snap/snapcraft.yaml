@@ -87,6 +87,15 @@ parts:
     after:
       - codex
 
+  # Snap wide defaults, read by codex as its lowest precedence system config #
+  defaults:
+    plugin: dump
+    source: snap/local
+
+layout:
+  /etc/codex:
+    bind: $SNAP/etc/codex
+
 apps:
   codex:
     command: bin/codex
