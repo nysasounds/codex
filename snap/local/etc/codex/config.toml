@@ -1,0 +1,8 @@
+# Snap defaults, loaded from /etc/codex/config.toml.
+# This is the lowest precedence layer, so ~/snap/codex/current/config.toml overrides it.
+
+[features]
+# The shared background daemon only runs from an upstream packaged install
+# (codex-package.json layout) and self updates outside of snapd.
+# Without this the TUI exits with "this CLI has no complete local package".
+daemon_auto_start = false
