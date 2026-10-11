@@ -1,0 +1,46 @@
+#!/bin/sh
+set -eu
+
+PATH="$SNAP/usr/sbin:$SNAP/usr/bin:$SNAP/sbin:$SNAP/bin:$PATH"
+export PATH
+
+print_tool() {
+    tool="$1"
+    if command -v "$tool" >/dev/null 2>&1; then
+        printf '%s=%s\n' "$tool" "$(command -v "$tool")"
+        case "$tool" in
+            bwrap|python3|pip3|rustc|cargo|rustfmt|gcc) version_cmd='--version' ;;
+            go) version_cmd='version' ;;
+            *) version_cmd='--version' ;;
+        esac
+        if output="$($tool $version_cmd 2>&1 | sed -n '1p')"; then
+            printf '%s_version=%s\n' "$tool" "$output"
+        else
+            status="$?"
+            printf '%s_version=fail exit=%s\n' "$tool" "$status"
+            printf '%s_version_output<<EOF\n%s\nEOF\n' "$tool" "$output"
+        fi
+    else
+        printf '%s=missing\n' "$tool"
+    fi
+}
+
+if [ "${CODEX_WRAPPER_DIAGNOSTIC:-}" = "1" ]; then
+    printf 'CODEX_HOME=%s\n' "${CODEX_HOME:-}"
+    printf 'PATH=%s\n' "$PATH"
+    printf '\n[selected tools]\n'
+    for tool in bwrap python3 pip3 go rustc cargo rustfmt gcc; do
+        print_tool "$tool"
+    done
+    exit 0
+fi
+
+if [ "${CODEX_WRAPPER_TEST:-}" = "1" ]; then
+    "${SHELL:-/bin/sh}"
+    status="$?"
+    exit "$status"
+fi
+
+"$SNAP/bin/migrate-codex-home"
+
+exec "$SNAP/bin/codex" "$@"
